@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ativos.models import Ativo
+from ativos.models import Ativo, Symbol
 
 
 class AtivoSerializer(serializers.ModelSerializer):
@@ -11,3 +11,9 @@ class AtivoSerializer(serializers.ModelSerializer):
     #     instance['stocks'] = validated_data['stocks']
     #     instance.save()
     #     return instance
+
+
+class SymbolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Symbol
+        fields = '__all__'

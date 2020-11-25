@@ -1,66 +1,81 @@
-from ativos.models import Ativo
+from ativos.models import Ativo, Symbol
 from rest_framework import viewsets, permissions, status
 import requests
-from .serializers import AtivoSerializer
+from .serializers import AtivoSerializer, SymbolSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
-import json
-import yfinance as yf
-from datetime import date, timedelta
+from ativos.threads import GetAtivo
+from threading import Event
 
 
 class AtivoViewSet (viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])  # escolhendo o metodo
     def get_ativo_data(self, request):
-        exists = None
-        erros = []
         permissions_classes = [
             permissions.AllowAny
         ]
-        query = None
+
+        erros = []
+
+        symbols = Symbol.objects.all()
+        symbolSerializer = SymbolSerializer(symbols, many=True)
+        if not symbolSerializer.data:
+            return Response({"message": "Não há ativos sendo observados."})
+
+        threadList = []
+
+        for symbol in symbolSerializer.data:
+            thread = GetAtivo(symbol, erros)
+            threadList.append(thread)
+
+        for thread in threadList:
+            thread.start()
+
+        for thread in threadList:
+            thread.join()
+
+        if len(erros) != 0:
+            return Response({"erros": erros})
+        return Response("Sucesso")
+
+    @action(detail=False, methods=['post'])  # escolhendo o metodo
+    def add_new_ativo(self, request):
+        permissions_classes = [
+            permissions.AllowAny
+        ]
 
         try:
-            query = Ativo.objects.get(symbol="BPAC11.SA")
-            exists = query
+            query = Symbol.objects.get(name=request.data["name"])
+
+            if query != None:
+                return Response(data={"message": "Ativo já monitorado"})
 
         except Exception as erro:
-            erros.append(erro)
-            return Response(str(erro))
+            None
+            # return Response(str(erro), status=status.HTTP_404_NOT_FOUND)
 
-        ativo = yf.Ticker("BPAC11.SA")
-        today = date.today()
-        today.strftime("%Y-%m-%d")
-        stocks = {
-            "oneDay": ativo.history(period="1d", interval="2m").to_json(),
-            "fiveDays": ativo.history(period="5d", interval="15m").to_json(),
-            "oneMonth": ativo.history(start=(today - timedelta(days=30)).strftime("%Y-%m-%d"), end=today.strftime("%Y-%m-%d")).to_json(),
-            "sixMonths": ativo.history(start=(today - timedelta(days=180)).strftime("%Y-%m-%d"), end=today.strftime("%Y-%m-%d")).to_json(),
-        }
+        serializer = SymbolSerializer(data=request.data)
 
-        body = {
-            "longName": ativo.info["longName"],
-            "symbol": ativo.info["symbol"],
-            "sector": ativo.info["sector"],
-            "profitMargins": str(ativo.info["profitMargins"]),
-            "stocks": stocks
-        }
-        # serializer = AtivoSerializer(query, data=body)
-
-        if(exists != None):  # verificação se é vazio
-            serializer = AtivoSerializer(instance=query, data=body)
-            if serializer.is_valid():  # valida se o JSON pode ser serializado como ativo
-                # res = serializer.update(instance=Ativo)
-
-                # serializer.save()
-                return Response(str(serializer.save(update_fields=['updated_at'])))
-            else:
-                return Response(serializer.errors, status=status.HTTP_404_NOT_FOUND)
+        if serializer.is_valid():  # valida se o JSON pode ser serializado como ativo
+            res = serializer.save()
+            return Response(str(res))
         else:
-            serializer = AtivoSerializer(data=body)
-            if serializer.is_valid():  # valida se o JSON pode ser serializado como ativo
-                return Response(str(serializer.save()))
-            else:
-                return Response(serializer.errors, status=status.HTTP_404_NOT_FOUND)
+            return Response(serializer.errors, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['delete'])  # escolhendo o metodo
+    def delete_ativo(self, request):
+        permissions_classes = [
+            permissions.AllowAny
+        ]
+
+        try:
+            instance = Symbol.objects.get(id=request.GET["id"])
+
+            instance.delete()
+            return Response(data={"message": "Ativo deletado"})
+
+        except Exception as erro:
+            return Response(str(erro))
 
     def list(self, request):  # verifica o banco
         queryset = Ativo.objects.all()  # busca os valores no banco
