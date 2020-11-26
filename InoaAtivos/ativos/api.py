@@ -15,6 +15,19 @@ class AtivoViewSet (viewsets.ModelViewSet):
             permissions.AllowAny
         ]
 
+        query = Ativo.objects.all()
+
+        serializer = AtivoSerializer(
+            query, many=True)
+
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])  # escolhendo o metodo
+    def save_ativo_data(self, request):
+        permissions_classes = [
+            permissions.AllowAny
+        ]
+
         erros = []
 
         symbols = Symbol.objects.all()
@@ -60,6 +73,7 @@ class AtivoViewSet (viewsets.ModelViewSet):
             res = serializer.save()
             return Response(str(res))
         else:
+
             return Response(serializer.errors, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['delete'])  # escolhendo o metodo
@@ -77,7 +91,8 @@ class AtivoViewSet (viewsets.ModelViewSet):
         except Exception as erro:
             return Response(str(erro))
 
-    def list(self, request):  # verifica o banco
+    @action(detail=False, methods=['get'])
+    def list_ativos(self, request):  # verifica o banco
         queryset = Ativo.objects.all()  # busca os valores no banco
         permissions_classes = [
             permissions.AllowAny

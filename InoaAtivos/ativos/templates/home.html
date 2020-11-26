@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h3>Ativos monitorados:</h3>
+
+<body>
+    <div class="row">
+        {% for ativo in ativos %}
+        <div class="card" style="width: 18rem;">
+            <div class="card-body">
+                <h5 class="card-title">{{ativo.symbol}}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">{{ativo.longName}}</h6>
+                <p class="card-text"> {{ativo.open}} </p>
+                <a href="#" class="card-link">Card link</a>
+                <a href="#" class="card-link">Another link</a>
+            </div>
+        </div>
+        <div style="width: 16px"></div>
+        {% endfor %}
+    </div>
+</body>
+
+</html>
+
+{% endblock %}
